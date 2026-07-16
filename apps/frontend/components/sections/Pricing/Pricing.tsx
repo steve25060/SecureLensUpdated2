@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { Check } from 'lucide-react';
+import { ShiningText } from '@/components/common/ShiningText';
 
 const plans = [
   {
@@ -77,9 +78,7 @@ export default function Pricing() {
           className="text-center mb-16"
         >
           <h2 className="text-4xl sm:text-5xl font-bold mb-4">
-            <span className="bg-gradient-to-r from-violet-400 via-purple-400 to-fuchsia-400 bg-clip-text text-transparent">
-              Simple, Transparent Pricing
-            </span>
+            <ShiningText>Simple, Transparent Pricing</ShiningText>
           </h2>
           <p className="text-gray-300 text-lg max-w-2xl mx-auto mb-8">
             Choose the plan that fits your security needs

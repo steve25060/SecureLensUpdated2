@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { CheckCircle, Users, Zap } from 'lucide-react';
+import { ShiningText } from '@/components/common/ShiningText';
 
 export default function About() {
   return (
@@ -22,9 +23,7 @@ export default function About() {
             viewport={{ once: true }}
           >
             <h2 className="text-4xl sm:text-5xl font-bold mb-6">
-              <span className="bg-gradient-to-r from-violet-400 via-purple-400 to-fuchsia-400 bg-clip-text text-transparent">
-                About SecureLens
-              </span>
+              <ShiningText>About SecureLens</ShiningText>
             </h2>
             <p className="text-gray-300 text-lg mb-6 leading-relaxed">
               SecureLens is built by security professionals for security professionals.

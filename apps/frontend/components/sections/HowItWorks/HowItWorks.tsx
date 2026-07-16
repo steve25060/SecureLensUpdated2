@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { Settings, Play, BarChart3, CheckCircle } from 'lucide-react';
+import { ShiningText } from '@/components/common/ShiningText';
 
 const steps = [
   {
@@ -69,9 +70,7 @@ export default function HowItWorks() {
           className="text-center mb-16"
         >
           <h2 className="text-4xl sm:text-5xl font-bold mb-4">
-            <span className="bg-gradient-to-r from-violet-400 via-purple-400 to-fuchsia-400 bg-clip-text text-transparent">
-              How SecureLens Works
-            </span>
+            <ShiningText>How SecureLens Works</ShiningText>
           </h2>
           <p className="text-gray-300 text-lg max-w-2xl mx-auto">
             A streamlined workflow to identify and eliminate security vulnerabilities

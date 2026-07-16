@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { BookOpen, ExternalLink } from 'lucide-react';
+import { ShiningText } from '@/components/common/ShiningText';
 
 const docs = [
   {
@@ -62,9 +63,7 @@ export default function Docs() {
           <div className="flex items-center justify-center gap-2 mb-4">
             <BookOpen className="w-6 h-6 text-violet-400" />
             <h2 className="text-4xl sm:text-5xl font-bold">
-              <span className="bg-gradient-to-r from-violet-400 via-purple-400 to-fuchsia-400 bg-clip-text text-transparent">
-                Documentation
-              </span>
+              <ShiningText>Documentation</ShiningText>
             </h2>
           </div>
           <p className="text-gray-300 text-lg max-w-2xl mx-auto">

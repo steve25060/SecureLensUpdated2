@@ -1,6 +1,8 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { responsiveConfig } from '@/config/responsive';
+import { ShiningText } from '@/components/common/ShiningText';
 import {
   Shield,
   Zap,
@@ -125,28 +127,26 @@ const itemVariants = {
 
 export default function Features() {
   return (
-    <section id="features" className="relative overflow-hidden bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 py-24">
+    <section id="features" className="relative overflow-hidden bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 py-8 sm:py-12 lg:py-16">
       {/* Background gradient matching hero theme */}
       <div className="absolute inset-0 opacity-30">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-violet-500 rounded-full mix-blend-multiply filter blur-3xl" />
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl" />
+        <div className="absolute top-0 left-1/4 w-48 h-48 sm:w-96 sm:h-96 bg-violet-500 rounded-full mix-blend-multiply filter blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-48 h-48 sm:w-96 sm:h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl" />
       </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto px-8 sm:px-6 lg:px-12">
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
           viewport={{ once: true }}
-          className="text-center mb-16"
+          className="text-center mb-8 sm:mb-12 lg:mb-16"
         >
-          <h2 className="text-4xl sm:text-5xl font-bold mb-4">
-            <span className="bg-gradient-to-r from-violet-400 via-purple-400 to-fuchsia-400 bg-clip-text text-transparent">
-              Powerful Security Features
-            </span>
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-2 sm:mb-4">
+            <ShiningText className="text-3xl sm:text-4xl lg:text-5xl">Powerful Security Features</ShiningText>
           </h2>
-          <p className="text-gray-300 text-lg max-w-2xl mx-auto">
+          <p className="text-xs sm:text-sm lg:text-base text-gray-300 max-w-2xl mx-auto px-2">
             Everything you need to identify, analyze, and remediate security vulnerabilities at scale
           </p>
         </motion.div>
@@ -157,7 +157,7 @@ export default function Features() {
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6"
         >
           {features.map((feature, index) => {
             const Icon = feature.icon;
@@ -169,17 +169,17 @@ export default function Features() {
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-slate-800 to-slate-700 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur" />
                 
-                <div className="relative bg-[#0b1020]/75 border border-white/10 rounded-xl p-6 backdrop-blur group-hover:border-violet-400/30 transition-all duration-300 h-full">
+                <div className="relative bg-[#0b1020]/75 border border-white/10 rounded-lg sm:rounded-xl p-4 sm:p-6 backdrop-blur group-hover:border-violet-400/30 transition-all duration-300 h-full flex flex-col">
                   {/* Icon Container */}
-                  <div className={`mb-4 inline-flex p-3 rounded-lg bg-gradient-to-br ${feature.color} bg-opacity-20`}>
-                    <Icon className={`w-6 h-6 text-transparent bg-gradient-to-r ${feature.color} bg-clip-text`} />
+                  <div className={`mb-3 sm:mb-4 inline-flex p-3 sm:p-4 rounded-lg bg-gradient-to-br ${feature.color} shadow-lg shadow-white/10 w-fit`}>
+                    <Icon className="w-6 sm:w-8 h-6 sm:h-8 text-white drop-shadow-md" />
                   </div>
 
                   {/* Content */}
-                  <h3 className="text-xl font-semibold text-white mb-2 group-hover:text-violet-300 transition-colors">
+                  <h3 className="text-base sm:text-lg font-semibold text-white mb-2 sm:mb-3 group-hover:text-violet-300 transition-colors">
                     {feature.title}
                   </h3>
-                  <p className="text-gray-400 text-sm leading-relaxed">
+                  <p className="text-gray-400 text-xs sm:text-sm leading-relaxed flex-grow">
                     {feature.description}
                   </p>
 

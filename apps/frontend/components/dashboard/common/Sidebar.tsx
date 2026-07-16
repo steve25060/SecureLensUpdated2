@@ -23,6 +23,7 @@ import {
   LogOut,
   User,
   Shield,
+  Users,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -35,6 +36,7 @@ const NAV_ITEMS = [
   { name: 'AI Copilot',  href: '/dashboard/ai-copilot',   icon: Sparkles },
   { name: 'Analytics',   href: '/dashboard/analytics',    icon: BarChart2 },
   { name: 'Settings',    href: '/dashboard/settings',     icon: Settings },
+  { name: 'Community',   href: '/dashboard/community',    icon: Users },
 ] as const;
 
 const RECENT_WORKSPACES = [

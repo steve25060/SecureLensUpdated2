@@ -111,13 +111,29 @@ export default function Hero() {
       <HeroBackground />
 
       {/* Updated hero container for wider layout, balanced columns, and centered content */}
-      <div className="relative z-10 mx-auto grid min-h-[92vh] max-w-[1600px] items-center gap-6 px-8 py-8 sm:px-6 lg:grid-cols-[40%_60%] lg:px-12">
+      <div className="relative z-10 mx-auto grid min-h-screen max-w-[1600px] items-center gap-4 sm:gap-6 px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:grid-cols-[40%_60%] lg:py-16">
         <motion.div
           initial={{ opacity: 0, x: -40, filter: "blur(8px)" }}
           animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
           transition={{ duration: 0.7, ease: "easeOut" }}
-          className="max-w-145"
+          className="w-full"
         >
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1, duration: 0.45 }}
+            className="mb-3 sm:mb-4 flex items-center gap-2"
+          >
+            <motion.span 
+              className="bg-gradient-to-r from-violet-400 via-purple-400 to-fuchsia-400 bg-clip-text text-3xl sm:text-4xl lg:text-6xl font-black text-transparent leading-tight"
+              style={{
+                backgroundSize: '200% 100%',
+              }}
+            >
+              SecureLens
+            </motion.span>
+          </motion.div>
+
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -128,7 +144,7 @@ export default function Hero() {
             <span className="truncate">AI-Powered Security Intelligence Platform</span>
           </motion.div>
 
-            <h1 className="min-h-46 text-[42px] font-black leading-[1.08] text-white sm:min-h-52 sm:text-5xl lg:min-h-56.5 lg:text-[52px]">
+            <h1 className="min-h-auto text-2xl sm:text-3xl lg:text-5xl font-black leading-tight sm:leading-snug text-white">
             {visibleLines.map((line, index) => {
               const isAccentLine = index >= 2;
               const content = line || "\u00a0";
@@ -157,7 +173,7 @@ export default function Hero() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.25, duration: 0.5 }}
-              className="mt-5 max-w-117.5 text-sm leading-7 text-gray-300 sm:text-base"
+              className="mt-4 sm:mt-5 max-w-xl text-sm sm:text-base leading-relaxed text-gray-300"
           >
             SecureLens orchestrates industry-leading open-source security tools,
             correlates findings into actionable insights, and helps developers
@@ -203,7 +219,7 @@ export default function Hero() {
             scale: { duration: 0.6 },
             y: { duration: 6, repeat: Infinity, ease: "easeInOut" },
           }}
-          className="min-w-0 flex justify-end"
+          className="min-w-0 flex justify-end hidden lg:flex"
         >
           <DashboardWindow>
             <DashboardPreview />

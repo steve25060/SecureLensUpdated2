@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { Calendar, ArrowRight } from 'lucide-react';
+import { ShiningText } from '@/components/common/ShiningText';
 
 const blogPosts = [
   {
@@ -51,9 +52,7 @@ export default function Blog() {
           className="text-center mb-16"
         >
           <h2 className="text-4xl sm:text-5xl font-bold mb-4">
-            <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-fuchsia-400 bg-clip-text text-transparent">
-              Latest from Our Blog
-            </span>
+            <ShiningText>Latest from Our Blog</ShiningText>
           </h2>
           <p className="text-gray-300 text-lg max-w-2xl mx-auto">
             Security insights, best practices, and product updates

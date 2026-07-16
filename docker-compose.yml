@@ -1,0 +1,20 @@
+version: '3.9'
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: securelens
+      POSTGRES_PASSWORD: securelens
+      POSTGRES_DB: securelens
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - '5433:5432'
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6380:6379'
+
+volumes:
+  pgdata:

@@ -1,0 +1,241 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── User ──────────────────────────────────────────────────────────────────────
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  name          String
+  passwordHash  String?
+  avatarUrl     String?
+  role          Role      @default(USER)
+  githubId      String?   @unique
+  googleId      String?   @unique
+  organization  String?
+  timezone      String    @default("UTC")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  workspaces    Workspace[]
+  scans         Scan[]
+  reports       Report[]
+  apiKeys       ApiKey[]
+  notifications Notification[]
+
+  @@map("users")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+// ─── Workspace ─────────────────────────────────────────────────────────────────
+model Workspace {
+  id          String    @id @default(uuid())
+  name        String
+  description String?
+  tags        String[]
+  type        WorkspaceType @default(WEBSITE)
+  targetUrl   String?
+  repoUrl     String?
+  userId      String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scans       Scan[]
+  findings    Finding[]
+  reports     Report[]
+
+  @@map("workspaces")
+}
+
+enum WorkspaceType {
+  WEBSITE
+  GITHUB
+  COMBINED
+}
+
+// ─── Scan ──────────────────────────────────────────────────────────────────────
+model Scan {
+  id               String      @id @default(uuid())
+  workspaceId      String
+  userId           String?
+  type             ScanType    @default(WEBSITE)
+  mode             String      @default("website") // website, github, combined
+  status           ScanStatus  @default(PENDING)
+  target           String
+  targetUrl        String?     // normalized target URL
+  engines          String[]
+  riskScore        Int?
+  findingsCount    Int         @default(0)
+  duration         Int?        // seconds
+  progress         Int         @default(0) // 0-100
+  errorMessage     String?
+  engineResults    Json?       // Raw results from engines
+  startedAt        DateTime?
+  completedAt      DateTime?
+  finishedAt       DateTime?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  workspace        Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user             User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  findings         Finding[]
+  logs             ScanLog[]
+
+  @@map("scans")
+}
+
+enum ScanType {
+  WEBSITE
+  GITHUB
+  COMBINED
+}
+
+enum ScanStatus {
+  QUEUED
+  PENDING
+  RUNNING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+// ─── ScanLog ──────────────────────────────────────────────────────────────────
+model ScanLog {
+  id        String   @id @default(uuid())
+  scanId    String
+  message   String
+  level     String   @default("info")
+  engine    String?
+  timestamp DateTime @default(now())
+
+  scan      Scan     @relation(fields: [scanId], references: [id], onDelete: Cascade)
+
+  @@map("scan_logs")
+}
+
+// ─── Finding ──────────────────────────────────────────────────────────────────
+model Finding {
+  id           String         @id @default(uuid())
+  scanId       String
+  workspaceId  String
+  title        String
+  description  String
+  severity     Severity
+  status       FindingStatus  @default(NEW)
+  source       String         // e.g. "Nuclei", "OWASP ZAP"
+  category     String?        // e.g. "Injection Flaws"
+  target       String
+  url          String?
+  parameter    String?
+  evidence     String?
+  cwe          String?
+  cvss         Float?
+  owasp        String?
+  remediation  String?
+  aiExplanation String?
+  firstSeen    DateTime       @default(now())
+  lastSeen     DateTime       @default(now())
+  resolvedAt   DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  scan         Scan           @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  workspace    Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("findings")
+}
+
+enum Severity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+  INFO
+}
+
+enum FindingStatus {
+  NEW
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+  FALSE_POSITIVE
+}
+
+// ─── Report ───────────────────────────────────────────────────────────────────
+model Report {
+  id           String        @id @default(uuid())
+  workspaceId  String
+  userId       String
+  name         String
+  type         ReportType    @default(EXECUTIVE_SUMMARY)
+  status       ReportStatus  @default(PENDING)
+  fileUrl      String?
+  fileSize     Int?
+  summary      Json?
+  scheduledAt  DateTime?
+  generatedAt  DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  workspace    Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("reports")
+}
+
+enum ReportType {
+  EXECUTIVE_SUMMARY
+  SECURITY_POSTURE
+  VULNERABILITY
+  COMPLIANCE
+  ASSET_INVENTORY
+}
+
+enum ReportStatus {
+  PENDING
+  GENERATING
+  COMPLETED
+  FAILED
+}
+
+// ─── ApiKey ───────────────────────────────────────────────────────────────────
+model ApiKey {
+  id        String    @id @default(uuid())
+  userId    String
+  name      String
+  keyHash   String    @unique
+  lastUsed  DateTime?
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("api_keys")
+}
+
+// ─── Notification ─────────────────────────────────────────────────────────────
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  body      String
+  type      String   @default("info") // info, warning, critical, success
+  category  String   @default("system") // scan, finding, report, team, system
+  read      Boolean  @default(false)
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}

@@ -1,0 +1,32 @@
+{
+  "name": "securelens-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SecureLens - AI-powered Security Intelligence Platform",
+  "scripts": {
+    "build": "pnpm -r --if-present build",
+    "dev": "pnpm -r --if-present dev",
+    "start": "pnpm -r --if-present start",
+    "lint": "pnpm -r --if-present lint",
+    "test": "pnpm -r --if-present test",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
+    "prepare": "test -d .git && husky install || true"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.39.0",
+    "@typescript-eslint/parser": "^8.39.0",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-import-resolver-typescript": "^3.6.3",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "typescript": "^5.3.3",
+    "prettier": "^3.2.5",
+    "eslint": "^8.56.0",
+    "husky": "^9.0.11",
+    "lint-staged": "^15.2.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

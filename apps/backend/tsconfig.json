@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "commonjs",
+    "strict": false,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "outDir": "dist",
+    "sourceMap": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "baseUrl": ".",
+    "resolveJsonModule": true,
+    "declaration": true,
+    "noImplicitAny": false,
+    "paths": {
+      "@securelens/constants": ["../../packages/constants/src/index.ts"],
+      "@securelens/findings-schema": ["../../packages/findings-schema/src/index.ts"],
+      "@securelens/shared-types": ["../../packages/shared-types/src/index.ts"],
+      "@securelens/shared-utils": ["../../packages/shared-utils/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*.ts"]
+}

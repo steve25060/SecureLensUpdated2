@@ -1,0 +1,172 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { motion, type Variants } from "framer-motion";
+import { ArrowRight } from "lucide-react";
+
+import AuthCard from "@/components/auth/AuthCard";
+import PasswordInput from "@/components/auth/PasswordInput";
+import SocialLoginButtons from "@/components/auth/SocialLoginButtons";
+
+const fieldVariants: Variants = {
+  hidden: { opacity: 0, y: 18 },
+  show: (index: number) => ({
+    opacity: 1,
+    y: 0,
+    transition: { delay: index * 0.08, duration: 0.45, ease: "easeOut" as const },
+  }),
+};
+
+export default function LoginForm() {
+  const [email, setEmail] = useState("test@gmail.com");
+  const [password, setPassword] = useState("test");
+  const [remember, setRemember] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        // Backend expects `username` field; we send the email as the username
+        body: JSON.stringify({ username: email, password }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.message ?? "Invalid credentials. Please try again.");
+      }
+      const data = await res.json();
+      // Store JWT (access_token) securely – for demo we use localStorage
+      if (data?.access_token) {
+        localStorage.setItem("access_token", data.access_token);
+      }
+      // Store user data
+      if (data?.user) {
+        localStorage.setItem("user", JSON.stringify(data.user));
+        if (data.user.email) {
+          localStorage.setItem("user_email", data.user.email);
+        }
+        if (data.user.username || data.user.firstName || data.user.lastName) {
+          const name = data.user.username || `${data.user.firstName} ${data.user.lastName}`.trim();
+          localStorage.setItem("user_name", name);
+        }
+      }
+      // Redirect to dashboard
+      router.push("/dashboard");
+    } catch (err: any) {
+      setError(err.message ?? "Something went wrong. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <AuthCard>
+      <motion.form className="space-y-6" initial="hidden" animate="show" onSubmit={handleSubmit}>
+        <motion.div variants={fieldVariants} custom={0} className="space-y-2">
+          <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+            Welcome Back
+          </h1>
+          <p className="max-w-md text-sm leading-6 text-white/55">
+            Sign in to access scans, findings, and your SecureLens security dashboard.
+          </p>
+        </motion.div>
+
+        <div className="space-y-4">
+          <motion.div variants={fieldVariants} custom={1} className="space-y-2">
+            <label className="block text-sm font-medium text-white/75" htmlFor="login-email">
+              Email
+            </label>
+            <input
+              id="login-email"
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="you@company.com"
+              className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-white placeholder:text-white/30 outline-none transition focus:border-violet-400/50 focus:bg-white/[0.06] focus:ring-2 focus:ring-violet-500/20"
+            />
+          </motion.div>
+
+          <motion.div variants={fieldVariants} custom={2}>
+            <PasswordInput
+              label="Password"
+              name="login-password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="Enter your password"
+            />
+          </motion.div>
+
+          <motion.div
+            variants={fieldVariants}
+            custom={3}
+            className="flex items-center justify-between gap-4 text-sm"
+          >
+            <label className="flex items-center gap-2 text-white/70">
+              <input
+                type="checkbox"
+                checked={remember}
+                onChange={(event) => setRemember(event.target.checked)}
+                className="h-4 w-4 rounded border-white/20 bg-transparent text-violet-500 focus:ring-violet-500/30"
+              />
+              Remember me
+            </label>
+            <Link href="/auth/forgot-password" className="text-violet-300 transition hover:text-violet-200">
+              Forgot Password?
+            </Link>
+          </motion.div>
+        </div>
+
+        {error && (
+          <motion.div
+            variants={fieldVariants}
+            custom={3.5}
+            className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400"
+            role="alert"
+          >
+            {error}
+          </motion.div>
+        )}
+
+        <motion.button
+          variants={fieldVariants}
+          custom={4}
+          whileHover={{ scale: isLoading ? 1 : 1.01 }}
+          whileTap={{ scale: isLoading ? 1 : 0.99 }}
+          type="submit"
+          disabled={isLoading}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-linear-to-r from-violet-600 via-violet-500 to-fuchsia-500 px-4 py-3.5 text-sm font-semibold text-white shadow-[0_18px_40px_rgba(124,58,237,0.28)] transition disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          {isLoading ? "Signing in…" : "Login"}
+          {!isLoading && <ArrowRight className="h-4 w-4" />}
+        </motion.button>
+
+        <motion.div variants={fieldVariants} custom={5} className="flex items-center gap-4">
+          <div className="h-px flex-1 bg-white/10" />
+          <span className="text-xs uppercase tracking-[0.3em] text-white/35">Or continue with</span>
+          <div className="h-px flex-1 bg-white/10" />
+        </motion.div>
+
+        <motion.div variants={fieldVariants} custom={6}>
+          <SocialLoginButtons />
+        </motion.div>
+
+        <motion.p variants={fieldVariants} custom={7} className="text-center text-sm text-white/55">
+          New to SecureLens?{" "}
+          <Link href="/register" className="font-medium text-violet-300 transition hover:text-violet-200">
+            Create an account
+          </Link>
+        </motion.p>
+      </motion.form>
+    </AuthCard>
+  );
+}

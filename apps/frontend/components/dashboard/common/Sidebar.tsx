@@ -8,7 +8,6 @@ import {
   LayoutDashboard,
   Briefcase,
   Radio,
-  GitBranch,
   ShieldAlert,
   FileText,
   Sparkles,
@@ -19,24 +18,23 @@ import {
   X,
   Zap,
   Clock,
-  ChevronLeft,
-  LogOut,
-  User,
   Shield,
   Users,
 } from 'lucide-react';
 
+const NOTIFICATION_COUNT = 3;
+
 const NAV_ITEMS = [
-  { name: 'Dashboard',   href: '/dashboard',              icon: LayoutDashboard },
-  { name: 'Workspaces',  href: '/dashboard/workspaces',   icon: Briefcase },
-  { name: 'Live Scan',   href: '/dashboard/live-scan',    icon: Radio },
-  { name: 'GitHub Scan', href: '/dashboard/github-scan',  icon: GitBranch },
-  { name: 'Findings',    href: '/dashboard/findings',     icon: ShieldAlert },
-  { name: 'Reports',     href: '/dashboard/reports',      icon: FileText },
-  { name: 'AI Copilot',  href: '/dashboard/ai-copilot',   icon: Sparkles },
-  { name: 'Analytics',   href: '/dashboard/analytics',    icon: BarChart2 },
-  { name: 'Settings',    href: '/dashboard/settings',     icon: Settings },
-  { name: 'Community',   href: '/dashboard/community',    icon: Users },
+  { name: 'Dashboard',     href: '/dashboard',              icon: LayoutDashboard },
+  { name: 'Workspaces',    href: '/dashboard/workspaces',   icon: Briefcase },
+  { name: 'Live Scan',     href: '/dashboard/live-scan',    icon: Radio },
+  { name: 'Findings',      href: '/dashboard/findings',     icon: ShieldAlert },
+  { name: 'Reports',       href: '/dashboard/reports',      icon: FileText },
+  { name: 'AI Copilot',    href: '/dashboard/ai-copilot',   icon: Sparkles },
+  { name: 'Analytics',     href: '/dashboard/analytics',    icon: BarChart2 },
+  { name: 'Notifications', href: '/dashboard/notifications', icon: Bell, badge: NOTIFICATION_COUNT },
+  { name: 'Community',     href: '/dashboard/community',    icon: Users },
+  { name: 'Settings',      href: '/dashboard/settings',     icon: Settings },
 ] as const;
 
 const RECENT_WORKSPACES = [
@@ -45,8 +43,6 @@ const RECENT_WORKSPACES = [
   { id: 3, name: 'auth-service',       time: '1d ago' },
   { id: 4, name: 'data-pipeline',      time: '2d ago' },
 ];
-
-const NOTIFICATION_COUNT = 3;
 
 interface NavLinksProps {
   pathname: string;
@@ -58,7 +54,9 @@ const NavLinks: React.FC<NavLinksProps> = ({ pathname, onClose }) => {
 
   return (
     <nav className="mt-3 space-y-1 px-3" aria-label="Main navigation">
-      {NAV_ITEMS.map(({ name, href, icon: Icon }, index) => {
+      {NAV_ITEMS.map((item, index) => {
+        const { name, href, icon: Icon } = item;
+        const badge = 'badge' in item ? item.badge : undefined;
         const isActive =
           href === '/dashboard'
             ? pathname === '/dashboard'
@@ -115,34 +113,22 @@ const NavLinks: React.FC<NavLinksProps> = ({ pathname, onClose }) => {
                   `}>
                     <Icon size={16} className="transition-transform duration-200 group-hover:scale-110" />
                   </div>
-                  <span className="relative z-10">{name}</span>
+                  <span className="relative z-10 flex-1">{name}</span>
+                  {badge && badge > 0 && (
+                    <motion.span
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="text-[10px] font-bold bg-gradient-to-r from-red-500 to-rose-500 text-white rounded-full px-1.5 py-0.5 leading-none shadow-lg shadow-red-500/25 relative z-10"
+                    >
+                      {badge}
+                    </motion.span>
+                  )}
                 </motion.div>
               </div>
             </Link>
           </motion.div>
         );
       })}
-
-      <button
-        className="relative w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-400 hover:text-gray-200 hover:bg-white/[0.03] transition-all duration-200 group"
-        aria-label={`Notifications – ${NOTIFICATION_COUNT} unread`}
-      >
-        <span className="flex items-center gap-3 transition-transform duration-200 group-hover:translate-x-1">
-          <span className="flex items-center justify-center w-8 h-8 rounded-lg text-gray-500 group-hover:text-gray-300 transition-colors">
-            <Bell size={16} className="transition-transform duration-200 group-hover:scale-110" />
-          </span>
-          Notifications
-        </span>
-        {NOTIFICATION_COUNT > 0 && (
-          <motion.span
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            className="text-[10px] font-bold bg-gradient-to-r from-red-500 to-rose-500 text-white rounded-full px-1.5 py-0.5 leading-none shadow-lg shadow-red-500/25"
-          >
-            {NOTIFICATION_COUNT}
-          </motion.span>
-        )}
-      </button>
     </nav>
   );
 };

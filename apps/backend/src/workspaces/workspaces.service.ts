@@ -1,86 +1,272 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
+import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuthService } from '../auth/auth.service';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
+
+/**
+ * Shape used everywhere (frontend + file fallback). Mirrors the Prisma model.
+ */
+export interface WorkspaceRecord {
+  id: string;
+  name: string;
+  description?: string | null;
+  tags: string[];
+  type: 'WEBSITE' | 'GITHUB' | 'COMBINED';
+  targetUrl?: string | null;
+  repoUrl?: string | null;
+  userId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+const DATA_DIR = process.env.NODE_ENV === 'production'
+  ? '/tmp/securelens-data'
+  : join(process.cwd(), '.securelens-data');
+const WORKSPACES_FILE = join(DATA_DIR, 'workspaces.json');
+
+const DEMO_SEED: Omit<WorkspaceRecord, 'id' | 'createdAt' | 'updatedAt'>[] = [
+  {
+    name: 'Acme Corp – Production',
+    description: 'Primary production website & API surface for Acme Corp.',
+    type: 'WEBSITE', targetUrl: 'https://acme.com', tags: ['production', 'external'], userId: 'demo-user-1',
+  },
+  {
+    name: 'Auth Service Repo',
+    description: 'GitHub source scan for the authentication microservice.',
+    type: 'GITHUB', repoUrl: 'https://github.com/acme/auth-service', tags: ['critical', 'internal'], userId: 'demo-user-1',
+  },
+];
 
 @Injectable()
 export class WorkspacesService {
   private readonly logger = new Logger(WorkspacesService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auth: AuthService,
+  ) {}
 
-  async findAll(userId: string) {
-    try {
-      return await this.prisma.workspace.findMany({
-        where: { userId },
-        orderBy: { createdAt: 'desc' },
-      });
-    } catch (error) {
-      this.logger.error(`Failed to fetch workspaces for user ${userId}:`, error);
-      throw error;
-    }
-  }
+  // ─── findAll ─────────────────────────────────────────────────────────────────
 
-  async findOne(id: string) {
-    try {
-      const workspace = await this.prisma.workspace.findUnique({ where: { id } });
-      if (!workspace) {
-        throw new Error(`Workspace not found: ${id}`);
+  async findAll(userId: string): Promise<WorkspaceRecord[]> {
+    await this.ensureUser(userId);
+
+    if (this.prisma.connected) {
+      try {
+        const rows = await this.prisma.workspace.findMany({
+          where: { userId },
+          orderBy: { createdAt: 'desc' },
+        });
+        return rows.map(this.serializeDb);
+      } catch (err: any) {
+        this.logger.warn(`DB findAll failed (${err.message}) → file fallback`);
       }
-      return workspace;
-    } catch (error) {
-      this.logger.error(`Failed to fetch workspace ${id}:`, error);
-      throw error;
     }
+
+    return this.fileStore().filter(w => w.userId === userId);
   }
 
-  async create(userId: string, dto: CreateWorkspaceDto) {
-    try {
-      const workspace = await this.prisma.workspace.create({
-        data: {
-          ...dto,
-          userId,
-        },
-      });
-      this.logger.log(`Workspace created: ${workspace.id} for user ${userId}`);
-      return workspace;
-    } catch (error) {
-      this.logger.error(`Failed to create workspace for user ${userId}:`, error);
-      throw error;
+  // ─── findOne ─────────────────────────────────────────────────────────────────
+
+  async findOne(id: string): Promise<WorkspaceRecord> {
+    if (this.prisma.connected) {
+      try {
+        const ws = await this.prisma.workspace.findUnique({ where: { id } });
+        if (ws) return this.serializeDb(ws);
+      } catch (err: any) {
+        this.logger.warn(`DB findOne failed (${err.message}) → file fallback`);
+      }
     }
+    const rec = this.fileStore().find(w => w.id === id);
+    if (!rec) throw new NotFoundException(`Workspace not found: ${id}`);
+    return rec;
   }
 
-  async update(id: string, dto: Partial<CreateWorkspaceDto>) {
-    try {
-      const workspace = await this.prisma.workspace.update({
-        where: { id },
-        data: dto,
-      });
-      this.logger.log(`Workspace updated: ${id}`);
-      return workspace;
-    } catch (error) {
-      this.logger.error(`Failed to update workspace ${id}:`, error);
-      throw error;
+  // ─── create ──────────────────────────────────────────────────────────────────
+
+  async create(userId: string, dto: CreateWorkspaceDto): Promise<WorkspaceRecord> {
+    await this.ensureUser(userId);
+    const type = (dto.type ?? 'WEBSITE') as WorkspaceRecord['type'];
+
+    if (this.prisma.connected) {
+      try {
+        const created = await this.prisma.workspace.create({
+          data: {
+            name: dto.name,
+            description: dto.description ?? null,
+            tags: dto.tags ?? [],
+            type,
+            targetUrl: dto.targetUrl ?? null,
+            repoUrl: dto.repoUrl ?? null,
+            userId,
+          },
+        });
+        this.logger.log(`Workspace created (DB): ${created.id} for ${userId}`);
+        return this.serializeDb(created);
+      } catch (err: any) {
+        this.logger.warn(`DB create failed (${err.message}) → file fallback`);
+      }
     }
+
+    const now = new Date().toISOString();
+    const record: WorkspaceRecord = {
+      id: randomUUID(),
+      name: dto.name,
+      description: dto.description ?? null,
+      tags: dto.tags ?? [],
+      type,
+      targetUrl: dto.targetUrl ?? null,
+      repoUrl: dto.repoUrl ?? null,
+      userId,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const store = this.fileStore();
+    store.push(record);
+    this.writeFile(store);
+    this.logger.log(`Workspace created (file): ${record.id} for ${userId}`);
+    return record;
   }
 
-  async remove(id: string) {
-    try {
-      await this.prisma.workspace.delete({ where: { id } });
-      this.logger.log(`Workspace deleted: ${id}`);
-      return { success: true };
-    } catch (error) {
-      this.logger.error(`Failed to delete workspace ${id}:`, error);
-      throw error;
+  // ─── update ──────────────────────────────────────────────────────────────────
+
+  async update(id: string, dto: Partial<CreateWorkspaceDto>): Promise<WorkspaceRecord> {
+    if (this.prisma.connected) {
+      try {
+        const updated = await this.prisma.workspace.update({
+          where: { id },
+          data: {
+            ...(dto.name !== undefined && { name: dto.name }),
+            ...(dto.description !== undefined && { description: dto.description }),
+            ...(dto.tags !== undefined && { tags: dto.tags }),
+            ...(dto.type !== undefined && { type: dto.type as any }),
+            ...(dto.targetUrl !== undefined && { targetUrl: dto.targetUrl }),
+            ...(dto.repoUrl !== undefined && { repoUrl: dto.repoUrl }),
+          },
+        });
+        return this.serializeDb(updated);
+      } catch (err: any) {
+        this.logger.warn(`DB update failed (${err.message}) → file fallback`);
+      }
     }
+    const store = this.fileStore();
+    const idx = store.findIndex(w => w.id === id);
+    if (idx === -1) throw new NotFoundException(`Workspace not found: ${id}`);
+    store[idx] = { ...store[idx], ...dto, updatedAt: new Date().toISOString() } as WorkspaceRecord;
+    this.writeFile(store);
+    return store[idx];
   }
+
+  // ─── remove ──────────────────────────────────────────────────────────────────
+
+  async remove(id: string): Promise<{ success: boolean }> {
+    if (this.prisma.connected) {
+      try {
+        await this.prisma.workspace.delete({ where: { id } });
+        return { success: true };
+      } catch (err: any) {
+        this.logger.warn(`DB delete failed (${err.message}) → file fallback`);
+      }
+    }
+    const store = this.fileStore();
+    const idx = store.findIndex(w => w.id === id);
+    if (idx === -1) throw new NotFoundException(`Workspace not found: ${id}`);
+    store.splice(idx, 1);
+    this.writeFile(store);
+    return { success: true };
+  }
+
+  // ─── stats ───────────────────────────────────────────────────────────────────
 
   async getStats(userId: string) {
+    const all = await this.findAll(userId);
+    return { total: all.length };
+  }
+
+  // ─── File-backed fallback store ──────────────────────────────────────────────
+  //
+  // Used when Postgres is unreachable so that workspaces created in the UI still
+  // persist across server restarts (unlike a pure in-memory map).
+
+  private fileStore(): WorkspaceRecord[] {
     try {
-      const total = await this.prisma.workspace.count({ where: { userId } });
-      return { total };
-    } catch (error) {
-      this.logger.error(`Failed to get workspace stats for user ${userId}:`, error);
-      throw error;
+      if (!existsSync(WORKSPACES_FILE)) {
+        mkdirSync(dirname(WORKSPACES_FILE), { recursive: true });
+        // Seed demo data on first use so the page isn't empty.
+        const seeded = DEMO_SEED.map(s => ({
+          ...s,
+          id: randomUUID(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }));
+        this.writeFile(seeded);
+        return seeded;
+      }
+      const raw = readFileSync(WORKSPACES_FILE, 'utf-8');
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (err: any) {
+      this.logger.error(`File store read failed: ${err.message}`);
+      return [];
+    }
+  }
+
+  private writeFile(store: WorkspaceRecord[]) {
+    try {
+      mkdirSync(dirname(WORKSPACES_FILE), { recursive: true });
+      writeFileSync(WORKSPACES_FILE, JSON.stringify(store, null, 2));
+    } catch (err: any) {
+      this.logger.error(`File store write failed: ${err.message}`);
+    }
+  }
+
+  // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+  /** Serialize a Prisma row (Date fields → ISO strings) for JSON responses. */
+  private serializeDb(row: any): WorkspaceRecord {
+    return {
+      id: row.id,
+      name: row.name,
+      description: row.description ?? null,
+      tags: row.tags ?? [],
+      type: row.type ?? 'WEBSITE',
+      targetUrl: row.targetUrl ?? null,
+      repoUrl: row.repoUrl ?? null,
+      userId: row.userId,
+      createdAt: row.createdAt instanceof Date ? row.createdAt.toISOString() : String(row.createdAt),
+      updatedAt: row.updatedAt instanceof Date ? row.updatedAt.toISOString() : String(row.updatedAt),
+    };
+  }
+
+  /**
+   * Guarantee the user row exists in Postgres before inserting a workspace.
+   * The demo login mints a JWT with `sub: 'demo-user-1'`; if that row isn't in
+   * the DB the workspace insert violates the FK. We seed it on demand here.
+   */
+  private async ensureUser(userId: string) {
+    if (!this.prisma.connected) return;
+    if (!userId || userId === 'undefined') return;
+    try {
+      const existing = await this.prisma.user.findUnique({ where: { id: userId } });
+      if (existing) return;
+      // Best-effort create. If it collides (race) we ignore and move on.
+      await this.prisma.user.create({
+        data: {
+          id: userId,
+          email: `${userId}@securelens.local`,
+          name: userId === 'demo-user-1' ? 'Demo User' : userId,
+          role: 'USER',
+        },
+      });
+      this.logger.log(`Ensured user row exists: ${userId}`);
+    } catch (err: any) {
+      // P2002 = unique violation → row already exists, which is fine.
+      if (!String(err?.code).startsWith('P2002')) {
+        this.logger.warn(`ensureUser(${userId}) failed: ${err.message}`);
+      }
     }
   }
 }

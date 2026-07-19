@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Users,
   MessageSquare,
@@ -12,360 +12,252 @@ import {
   Heart,
   Calendar,
   MapPin,
+  ExternalLink,
+  Search,
+  ArrowRight,
+  Star,
+  TrendingUp,
+  Shield,
+  Clock,
 } from 'lucide-react';
 
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { staggerChildren: 0.04 } }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 16 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] as const } }
+};
+
 const COMMUNITY_STATS = [
-  { label: 'Active Members', value: '10K+', icon: Users, color: 'from-violet-500 to-purple-500' },
-  { label: 'Discussions', value: '2.5K+', icon: MessageSquare, color: 'from-blue-500 to-cyan-500' },
-  { label: 'Contributions', value: '5K+', icon: Code2, color: 'from-green-500 to-emerald-500' },
-  { label: 'Resources', value: '500+', icon: BookOpen, color: 'from-orange-500 to-red-500' },
+  { label: 'Active Members', value: '10K+', icon: Users, color: 'text-violet-400', bg: 'bg-violet-500/10' },
+  { label: 'Discussions', value: '2.5K+', icon: MessageSquare, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+  { label: 'Contributions', value: '5K+', icon: Code2, color: 'text-green-400', bg: 'bg-green-500/10' },
+  { label: 'Resources', value: '500+', icon: BookOpen, color: 'text-orange-400', bg: 'bg-orange-500/10' },
 ];
 
 const FEATURED_CONTRIBUTORS = [
-  {
-    id: 1,
-    name: 'Amrita',
-    role: 'Security Researcher',
-    avatar: '👨‍💻',
-    contributions: 248,
-    templates: 42,
-    badge: 'Expert',
-  },
-  {
-    id: 2,
-    name: 'Aditya',
-    role: 'DevSecOps Engineer',
-    avatar: '👩‍💻',
-    contributions: 195,
-    templates: 35,
-    badge: 'Expert',
-  },
-  {
-    id: 3,
-    name: 'Taher',
-    role: 'Pentester',
-    avatar: '👨‍🔬',
-    contributions: 156,
-    templates: 28,
-    badge: 'Pro',
-  },
-  {
-    id: 4,
-    name: 'Achal',
-    role: 'Cloud Security',
-    avatar: '👩‍🔬',
-    contributions: 142,
-    templates: 24,
-    badge: 'Pro',
-  },
+  { id: 1, name: 'Amrita', role: 'Security Researcher', initials: 'AK', contributions: 248, templates: 42, badge: 'Expert', color: 'from-violet-600 to-violet-800' },
+  { id: 2, name: 'Aditya', role: 'DevSecOps Engineer', initials: 'AR', contributions: 195, templates: 35, badge: 'Expert', color: 'from-blue-600 to-blue-800' },
+  { id: 3, name: 'Taher', role: 'Pentester', initials: 'TM', contributions: 156, templates: 28, badge: 'Pro', color: 'from-teal-600 to-teal-800' },
+  { id: 4, name: 'Achal', role: 'Cloud Security', initials: 'AP', contributions: 142, templates: 24, badge: 'Pro', color: 'from-emerald-600 to-emerald-800' },
 ];
 
 const RECENT_DISCUSSIONS = [
-  {
-    id: 1,
-    title: 'Best practices for scanning Kubernetes clusters',
-    author: 'Mike Johnson',
-    replies: 24,
-    likes: 156,
-    category: 'Security',
-    timestamp: '2h ago',
-  },
-  {
-    id: 2,
-    title: 'Creating custom templates for your infrastructure',
-    author: 'Lisa Chen',
-    replies: 18,
-    likes: 92,
-    category: 'Templates',
-    timestamp: '5h ago',
-  },
-  {
-    id: 3,
-    title: 'Integrating SecureLens with CI/CD pipelines',
-    author: 'David Brown',
-    replies: 32,
-    likes: 234,
-    category: 'Integration',
-    timestamp: '1d ago',
-  },
+  { id: 1, title: 'Best practices for scanning Kubernetes clusters', author: 'Mike Johnson', replies: 24, likes: 156, category: 'Security', timestamp: '2h ago', pinned: true },
+  { id: 2, title: 'Creating custom templates for your infrastructure', author: 'Lisa Chen', replies: 18, likes: 92, category: 'Templates', timestamp: '5h ago', pinned: false },
+  { id: 3, title: 'Integrating SecureLens with CI/CD pipelines', author: 'David Brown', replies: 32, likes: 234, category: 'Integration', timestamp: '1d ago', pinned: false },
+  { id: 4, title: 'Zero trust architecture scanning strategies', author: 'Sarah Kim', replies: 15, likes: 78, category: 'Security', timestamp: '2d ago', pinned: false },
 ];
 
 const COMMUNITY_EVENTS = [
-  {
-    id: 1,
-    title: 'Monthly Security Webinar',
-    date: 'July 25, 2026',
-    time: '3:00 PM UTC',
-    attendees: 324,
-    featured: true,
-  },
-  {
-    id: 2,
-    title: 'Template Writing Workshop',
-    date: 'August 1, 2026',
-    time: '2:00 PM UTC',
-    attendees: 156,
-    featured: false,
-  },
-  {
-    id: 3,
-    title: 'Community Q&A Session',
-    date: 'August 8, 2026',
-    time: '4:00 PM UTC',
-    attendees: 89,
-    featured: false,
-  },
+  { id: 1, title: 'Monthly Security Webinar', date: 'July 25, 2026', time: '3:00 PM UTC', attendees: 324, featured: true, speaker: 'Dr. Elena Vasquez', topic: 'Advanced Threat Modeling' },
+  { id: 2, title: 'Template Writing Workshop', date: 'August 1, 2026', time: '2:00 PM UTC', attendees: 156, featured: false, speaker: 'Raj Patel', topic: 'Custom Nuclei Templates' },
+  { id: 3, title: 'Community Q&A Session', date: 'August 8, 2026', time: '4:00 PM UTC', attendees: 89, featured: false, speaker: 'SecureLens Team', topic: 'Product Roadmap' },
 ];
 
-function CommunityPage() {
-  const [selectedTab, setSelectedTab] = useState<'discussions' | 'events' | 'contributors'>('discussions');
+const POPULAR_RESOURCES = [
+  { id: 1, title: 'OWASP Top 10 Scanning Guide', type: 'Guide', downloads: 2340, icon: BookOpen },
+  { id: 2, title: 'Kubernetes Security Checklist', type: 'Checklist', downloads: 1890, icon: Code2 },
+  { id: 3, title: 'CI/CD Security Pipeline Template', type: 'Template', downloads: 1560, icon: Zap },
+  { id: 4, title: 'Cloud Security Assessment Kit', type: 'Kit', downloads: 1230, icon: Shield },
+];
+
+export default function CommunityPage() {
+  const [selectedTab, setSelectedTab] = useState<'discussions' | 'events' | 'contributors' | 'resources'>('discussions');
+  const [search, setSearch] = useState('');
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 py-8 px-6">
-      {/* Background Gradients */}
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-violet-500/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
-      </div>
-
-      <div className="relative z-10 max-w-6xl mx-auto">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-12"
+    <motion.div
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className="space-y-6"
+    >
+      <motion.div variants={itemVariants} className="flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-white tracking-tight">Community</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Join thousands of security professionals sharing templates, insights, and best practices.</p>
+        </div>
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-violet-600 to-violet-700 hover:from-violet-500 hover:to-violet-600 text-white text-sm font-medium transition-all shadow-lg shadow-violet-600/20"
         >
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <Users className="w-8 h-8 text-violet-400" />
-            <h1 className="text-4xl sm:text-5xl font-bold">
-              <span className="bg-gradient-to-r from-violet-400 via-purple-400 to-fuchsia-400 bg-clip-text text-transparent">
-                Community
-              </span>
-            </h1>
-          </div>
-          <p className="text-gray-300 text-lg max-w-2xl mx-auto">
-            Join thousands of security professionals sharing templates, insights, and best practices
-          </p>
-        </motion.div>
+          <ExternalLink size={14} /> Join Discord
+        </motion.button>
+      </motion.div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
-          {COMMUNITY_STATS.map((stat, idx) => {
-            const Icon = stat.icon;
-            return (
-              <motion.div
-                key={idx}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.1 }}
-                className="relative group"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-slate-800 to-slate-700 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur" />
-                <div className="relative bg-[#0b1020]/75 border border-white/10 rounded-xl p-6 backdrop-blur group-hover:border-violet-400/30 transition-all duration-300">
-                  <div className={`mb-4 inline-flex p-3 rounded-lg bg-gradient-to-br ${stat.color} shadow-lg shadow-white/10`}>
-                    <Icon className="w-6 h-6 text-white" />
+      <motion.div variants={itemVariants} className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        {COMMUNITY_STATS.map((stat) => {
+          const Icon = stat.icon;
+          return (
+            <motion.div key={stat.label} whileHover={{ y: -1 }} className={`${stat.bg} border border-white/[0.04] rounded-xl p-4 transition-all`}>
+              <div className="flex items-center gap-2 mb-2">
+                <Icon size={15} className={stat.color} />
+                <span className="text-xs text-gray-500">{stat.label}</span>
+              </div>
+              <p className="text-2xl font-bold text-white">{stat.value}</p>
+            </motion.div>
+          );
+        })}
+      </motion.div>
+
+      <motion.div variants={itemVariants} className="flex flex-wrap gap-1 bg-white/[0.02] rounded-xl p-1 border border-white/[0.06]">
+        {(['discussions', 'events', 'contributors', 'resources'] as const).map(tab => (
+          <button key={tab} onClick={() => setSelectedTab(tab)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all capitalize ${
+              selectedTab === tab ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/20' : 'text-gray-500 hover:text-gray-300'
+            }`}>
+            {tab}
+          </button>
+        ))}
+      </motion.div>
+
+      <AnimatePresence mode="wait">
+        {selectedTab === 'discussions' && (
+          <motion.div key="discussions" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="space-y-4">
+            <div className="relative max-w-sm">
+              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+              <input value={search} onChange={e => setSearch(e.target.value)}
+                placeholder="Search discussions..."
+                className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-violet-500/50 transition-colors" />
+            </div>
+            {RECENT_DISCUSSIONS.filter(d => !search || d.title.toLowerCase().includes(search.toLowerCase())).map((discussion, i) => (
+              <motion.div key={discussion.id} variants={itemVariants}
+                className="rounded-xl bg-white/[0.02] border border-white/[0.04] p-5 hover:bg-white/[0.03] hover:border-white/[0.08] transition-all cursor-pointer group">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      {discussion.pinned && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-400 border border-violet-500/20 font-medium">Pinned</span>
+                      )}
+                      <span className="text-[10px] px-2 py-0.5 rounded-md bg-white/[0.04] text-gray-500 border border-white/[0.06]">{discussion.category}</span>
+                    </div>
+                    <h3 className="text-sm font-semibold text-white group-hover:text-violet-300 transition-colors">{discussion.title}</h3>
+                    <div className="flex items-center gap-2 mt-1.5 text-xs text-gray-500">
+                      <span>by {discussion.author}</span>
+                      <span className="text-gray-700">·</span>
+                      <span>{discussion.timestamp}</span>
+                    </div>
                   </div>
-                  <div className="text-3xl font-bold text-violet-400 mb-1">{stat.value}</div>
-                  <div className="text-sm text-gray-400">{stat.label}</div>
+                  <div className="flex items-center gap-4 shrink-0 text-xs text-gray-500">
+                    <span className="flex items-center gap-1"><MessageSquare size={12} />{discussion.replies}</span>
+                    <span className="flex items-center gap-1"><Heart size={12} />{discussion.likes}</span>
+                  </div>
                 </div>
               </motion.div>
-            );
-          })}
+            ))}
+          </motion.div>
+        )}
+
+        {selectedTab === 'events' && (
+          <motion.div key="events" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="space-y-4">
+            {COMMUNITY_EVENTS.map((event) => (
+              <motion.div key={event.id} variants={itemVariants}
+                className={`rounded-xl p-5 transition-all cursor-pointer group ${
+                  event.featured
+                    ? 'bg-gradient-to-r from-violet-600/10 via-violet-600/5 to-transparent border border-violet-500/20 hover:border-violet-500/40'
+                    : 'bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.03] hover:border-white/[0.08]'
+                }`}>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      {event.featured && (
+                        <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded bg-violet-500/10 text-violet-400 border border-violet-500/20 font-medium">
+                          <Zap size={10} /> Featured
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="text-sm font-semibold text-white group-hover:text-violet-300 transition-colors">{event.title}</h3>
+                    <p className="text-xs text-gray-500 mt-1">{event.speaker} — {event.topic}</p>
+                    <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
+                      <span className="flex items-center gap-1.5"><Calendar size={12} />{event.date}</span>
+                      <span className="flex items-center gap-1.5"><Clock size={12} />{event.time}</span>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-xl font-bold text-violet-400">{event.attendees}</p>
+                    <p className="text-[11px] text-gray-500">attending</p>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </motion.div>
+        )}
+
+        {selectedTab === 'contributors' && (
+          <motion.div key="contributors" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {FEATURED_CONTRIBUTORS.map((contributor) => (
+              <motion.div key={contributor.id} variants={itemVariants} whileHover={{ y: -2 }}
+                className="rounded-xl bg-white/[0.02] border border-white/[0.04] p-5 hover:border-white/[0.08] transition-all group">
+                <div className="flex items-start gap-4 mb-4">
+                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${contributor.color} flex items-center justify-center text-white text-sm font-bold shadow-lg shrink-0`}>
+                    {contributor.initials}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-semibold text-white">{contributor.name}</h3>
+                    <p className="text-xs text-gray-500">{contributor.role}</p>
+                    <span className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 text-[10px] font-medium border border-amber-500/20">
+                      <Award size={10} /> {contributor.badge}
+                    </span>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div className="bg-white/[0.03] rounded-lg p-3 text-center">
+                    <p className="text-lg font-bold text-white">{contributor.contributions}</p>
+                    <p className="text-[10px] text-gray-500">Contributions</p>
+                  </div>
+                  <div className="bg-white/[0.03] rounded-lg p-3 text-center">
+                    <p className="text-lg font-bold text-white">{contributor.templates}</p>
+                    <p className="text-[10px] text-gray-500">Templates</p>
+                  </div>
+                </div>
+                <button className="w-full py-2 rounded-lg bg-white/[0.04] border border-white/[0.06] text-xs text-gray-400 hover:text-white hover:bg-white/[0.06] transition-all font-medium">
+                  View Profile
+                </button>
+              </motion.div>
+            ))}
+          </motion.div>
+        )}
+
+        {selectedTab === 'resources' && (
+          <motion.div key="resources" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="space-y-4">
+            {POPULAR_RESOURCES.map((resource) => {
+              const Icon = resource.icon;
+              return (
+                <motion.div key={resource.id} variants={itemVariants}
+                  className="rounded-xl bg-white/[0.02] border border-white/[0.04] p-5 hover:bg-white/[0.03] hover:border-white/[0.08] transition-all cursor-pointer group flex items-center gap-4">
+                  <div className="p-2.5 rounded-xl bg-violet-600/10 border border-violet-500/20 shrink-0">
+                    <Icon size={18} className="text-violet-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-semibold text-white group-hover:text-violet-300 transition-colors">{resource.title}</h3>
+                    <div className="flex items-center gap-3 mt-1">
+                      <span className="text-[11px] text-gray-500 bg-white/[0.03] px-2 py-0.5 rounded-md border border-white/[0.06]">{resource.type}</span>
+                      <span className="text-[11px] text-gray-500 flex items-center gap-1"><TrendingUp size={10} />{resource.downloads.toLocaleString()} downloads</span>
+                    </div>
+                  </div>
+                  <ArrowRight size={16} className="text-gray-600 group-hover:text-violet-400 group-hover:translate-x-0.5 transition-all shrink-0" />
+                </motion.div>
+              );
+            })}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <motion.div variants={itemVariants} className="relative overflow-hidden rounded-xl bg-gradient-to-r from-violet-600/10 via-violet-600/5 to-transparent border border-violet-500/20 p-6 text-center group hover:border-violet-500/40 transition-all">
+        <div className="absolute top-0 right-0 w-48 h-48 bg-violet-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+        <div className="relative">
+          <h2 className="text-lg font-bold text-white mb-1">Ready to Contribute?</h2>
+          <p className="text-sm text-gray-400 mb-4">Share templates, write guides, and help the community grow.</p>
+          <button className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-violet-700 hover:from-violet-500 hover:to-violet-600 text-white text-sm font-semibold transition-all shadow-lg shadow-violet-600/20">
+            Get Started
+          </button>
         </div>
-
-        {/* Tabs */}
-        <div className="flex gap-4 mb-8 border-b border-white/10">
-          {['discussions', 'events', 'contributors'].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setSelectedTab(tab as any)}
-              className={`px-6 py-3 font-medium text-sm transition-all duration-300 relative ${
-                selectedTab === tab
-                  ? 'text-violet-400'
-                  : 'text-gray-400 hover:text-gray-200'
-              }`}
-            >
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              {selectedTab === tab && (
-                <motion.div
-                  layoutId="tab-indicator"
-                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-violet-500 to-purple-500"
-                  transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                />
-              )}
-            </button>
-          ))}
-        </div>
-
-        {/* Content Sections */}
-        <motion.div
-          key={selectedTab}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.3 }}
-        >
-          {/* Discussions Tab */}
-          {selectedTab === 'discussions' && (
-            <div className="space-y-4">
-              {RECENT_DISCUSSIONS.map((discussion, idx) => (
-                <motion.div
-                  key={discussion.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.05 }}
-                  className="group relative"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-slate-800 to-slate-700 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur" />
-                  <div className="relative bg-[#0b1020]/75 border border-white/10 rounded-xl p-6 backdrop-blur group-hover:border-violet-400/30 transition-all duration-300 cursor-pointer">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-white group-hover:text-violet-300 transition-colors">
-                          {discussion.title}
-                        </h3>
-                        <div className="flex items-center gap-2 mt-2 text-sm text-gray-400">
-                          <span>by {discussion.author}</span>
-                          <span>•</span>
-                          <span>{discussion.timestamp}</span>
-                        </div>
-                      </div>
-                      <span className="px-3 py-1 rounded-full bg-violet-500/20 text-violet-300 text-xs font-medium">
-                        {discussion.category}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-6 text-sm text-gray-400">
-                      <div className="flex items-center gap-2">
-                        <MessageSquare className="w-4 h-4" />
-                        <span>{discussion.replies} replies</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Heart className="w-4 h-4" />
-                        <span>{discussion.likes} likes</span>
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          )}
-
-          {/* Events Tab */}
-          {selectedTab === 'events' && (
-            <div className="space-y-4">
-              {COMMUNITY_EVENTS.map((event, idx) => (
-                <motion.div
-                  key={event.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.05 }}
-                  className="group relative"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-slate-800 to-slate-700 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur" />
-                  <div className={`relative bg-[#0b1020]/75 border rounded-xl p-6 backdrop-blur transition-all duration-300 cursor-pointer
-                    ${event.featured ? 'border-violet-400/50 group-hover:border-violet-400' : 'border-white/10 group-hover:border-violet-400/30'}
-                  `}>
-                    <div className="flex items-start justify-between mb-3">
-                      <div>
-                        <h3 className="text-lg font-semibold text-white group-hover:text-violet-300 transition-colors">
-                          {event.title}
-                        </h3>
-                        {event.featured && (
-                          <div className="flex items-center gap-1 mt-1 text-xs text-violet-400">
-                            <Zap className="w-3 h-3" />
-                            Featured Event
-                          </div>
-                        )}
-                      </div>
-                      <div className="text-right">
-                        <div className="text-2xl font-bold text-violet-400">{event.attendees}</div>
-                        <div className="text-xs text-gray-400">attending</div>
-                      </div>
-                    </div>
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-3 text-sm text-gray-400">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4" />
-                        <span>{event.date}</span>
-                      </div>
-                      <span className="hidden sm:block">•</span>
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4" />
-                        <span>{event.time}</span>
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          )}
-
-          {/* Contributors Tab */}
-          {selectedTab === 'contributors' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {FEATURED_CONTRIBUTORS.map((contributor, idx) => (
-                <motion.div
-                  key={contributor.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.05 }}
-                  className="group relative"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-slate-800 to-slate-700 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur" />
-                  <div className="relative bg-[#0b1020]/75 border border-white/10 rounded-xl p-6 backdrop-blur group-hover:border-violet-400/30 transition-all duration-300">
-                    <div className="flex items-start gap-4 mb-4">
-                      <div className="text-4xl">{contributor.avatar}</div>
-                      <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-white">{contributor.name}</h3>
-                        <p className="text-sm text-gray-400">{contributor.role}</p>
-                        <div className="mt-2">
-                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-300 text-xs font-medium">
-                            <Award className="w-3 h-3" />
-                            {contributor.badge}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between text-gray-400">
-                        <span>Contributions</span>
-                        <span className="text-violet-400 font-semibold">{contributor.contributions}</span>
-                      </div>
-                      <div className="flex justify-between text-gray-400">
-                        <span>Templates</span>
-                        <span className="text-violet-400 font-semibold">{contributor.templates}</span>
-                      </div>
-                    </div>
-                    <button className="w-full mt-4 py-2 px-3 rounded-lg bg-gradient-to-r from-violet-600 to-purple-600 text-white text-sm font-medium hover:from-violet-500 hover:to-purple-500 transition-all duration-300">
-                      View Profile
-                    </button>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          )}
-        </motion.div>
-
-        {/* CTA Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-          className="mt-16 text-center"
-        >
-          <div className="relative group inline-block">
-            <div className="absolute inset-0 bg-gradient-to-r from-violet-600 to-purple-600 rounded-xl opacity-20 group-hover:opacity-40 transition-opacity duration-300 blur-xl" />
-            <div className="relative bg-gradient-to-r from-violet-600/10 to-purple-600/10 border border-violet-500/30 rounded-xl p-8 backdrop-blur">
-              <h2 className="text-2xl font-bold text-white mb-2">Ready to Join?</h2>
-              <p className="text-gray-300 mb-6">Contribute templates, share knowledge, and grow with our community</p>
-              <button className="px-8 py-3 rounded-lg bg-gradient-to-r from-violet-600 to-purple-600 text-white font-semibold hover:from-violet-500 hover:to-purple-500 transition-all duration-300 shadow-lg shadow-violet-600/30">
-                Get Started Now
-              </button>
-            </div>
-          </div>
-        </motion.div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
-
-export default CommunityPage;

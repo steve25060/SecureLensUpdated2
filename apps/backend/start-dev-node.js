@@ -1,165 +1,175 @@
 #!/usr/bin/env node
+/**
+ * One-command backend dev launcher.
+ *
+ * `npm run dev` runs this file, which:
+ *   1. Starts PostgreSQL + Redis via docker-compose (if Docker is available)
+ *   2. Waits for Postgres to accept connections
+ *   3. Generates the Prisma client + applies migrations (or `db push` fallback)
+ *   4. Launches the NestJS backend with ts-node, inheriting env from ../../.env
+ *
+ * If Docker isn't running, we skip straight to step 4 so the backend still
+ * starts in offline/demo mode (file-backed fallback stores).
+ *
+ * Ctrl+C is forwarded cleanly to the backend so the docker containers keep
+ * running between restarts (faster iteration).
+ */
 
-const { spawn, exec } = require('child_process');
+const { spawn, spawnSync, execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const net = require('net');
 
-// Colors for console output
-const colors = {
-  reset: '\x1b[0m',
-  green: '\x1b[32m',
-  blue: '\x1b[34m',
-  yellow: '\x1b[33m',
-  red: '\x1b[31m',
+const c = {
+  reset: '\x1b[0m', bold: '\x1b[1m',
+  green: '\x1b[32m', blue: '\x1b[34m', yellow: '\x1b[33m', red: '\x1b[31m',
+  dim: '\x1b[2m',
 };
-
 const log = {
-  info: (msg) => console.log(`${colors.blue}ℹ${colors.reset} ${msg}`),
-  success: (msg) => console.log(`${colors.green}✓${colors.reset} ${msg}`),
-  warn: (msg) => console.log(`${colors.yellow}⚠${colors.reset} ${msg}`),
-  error: (msg) => console.log(`${colors.red}✗${colors.reset} ${msg}`),
+  info: (m) => console.log(`${c.blue}ℹ${c.reset}  ${m}`),
+  ok: (m) => console.log(`${c.green}✓${c.reset}  ${m}`),
+  warn: (m) => console.log(`${c.yellow}⚠${c.reset}  ${m}`),
+  err: (m) => console.log(`${c.red}✗${c.reset}  ${m}`),
+  step: (m) => console.log(`\n${c.bold}${c.blue}▶ ${m}${c.reset}`),
+  dim: (m) => console.log(`${c.dim}   ${m}${c.reset}`),
 };
 
 const projectRoot = path.resolve(__dirname, '../..');
-const backendDir = path.resolve(__dirname);
+const backendDir = __dirname;
+const envFile = path.join(projectRoot, '.env');
 
-async function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+// ─── load .env so this script can read DATABASE_URL / REDIS_URL ───────────────
+function loadEnv(file) {
+  if (!fs.existsSync(file)) return;
+  for (const line of fs.readFileSync(file, 'utf-8').split('\n')) {
+    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
+    if (m && process.env[m[1]] === undefined) {
+      process.env[m[1]] = m[2];
+    }
+  }
+}
+loadEnv(envFile);
+
+const DATABASE_URL = process.env.DATABASE_URL || 'postgresql://securelens:securelens@localhost:5433/securelens';
+
+function run(cmd, args, opts = {}) {
+  return spawnSync(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf-8', ...opts });
+}
+function tryExec(cmd, opts = {}) {
+  try { return execSync(cmd, { stdio: 'pipe', encoding: 'utf-8', ...opts }).trim(); }
+  catch { return null; }
 }
 
-function execPromise(cmd, options = {}) {
-  return new Promise((resolve, reject) => {
-    exec(cmd, { ...options, maxBuffer: 1024 * 1024 * 10 }, (error, stdout, stderr) => {
-      if (error) {
-        reject(error);
-      } else {
-        resolve(stdout);
-      }
-    });
+function dockerAvailable() {
+  return tryExec('docker info', { stdio: 'ignore' }) !== null;
+}
+
+function composeCmd() {
+  // Prefer `docker compose` (v2); fall back to `docker-compose` (v1).
+  if (tryExec('docker compose version', { stdio: 'ignore' }) !== null) return ['docker', 'compose'];
+  if (tryExec('docker-compose version', { stdio: 'ignore' }) !== null) return ['docker-compose'];
+  return null;
+}
+
+async function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+
+/** Test whether a TCP port is accepting connections. */
+function portOpen(port, host = 'localhost') {
+  return new Promise((resolve) => {
+    const sock = new net.Socket();
+    sock.setTimeout(1000);
+    sock.once('connect', () => { sock.destroy(); resolve(true); });
+    sock.once('error', () => { sock.destroy(); resolve(false); });
+    sock.once('timeout', () => { sock.destroy(); resolve(false); });
+    sock.connect(port, host);
   });
 }
 
-async function checkDocker() {
-  log.info('Checking Docker status...');
-  try {
-    await execPromise('docker ps > /dev/null 2>&1');
-    log.success('Docker is running');
-    return true;
-  } catch {
-    log.warn('Docker is not running');
-    return false;
+async function waitForTcp(port, label, attempts = 30) {
+  for (let i = 1; i <= attempts; i++) {
+    if (await portOpen(port)) { log.ok(`${label} is up on :${port}`); return true; }
+    if (i % 5 === 0) log.dim(`waiting for ${label} (${i}/${attempts})…`);
+    await sleep(1000);
   }
-}
-
-async function startContainers() {
-  log.info('Starting PostgreSQL and Redis containers...');
-  try {
-    await execPromise('docker-compose up -d postgres redis', { cwd: projectRoot });
-    log.success('PostgreSQL running on localhost:5433');
-    log.success('Redis running on localhost:6380');
-    await sleep(3000); // Wait for containers to fully start
-  } catch (error) {
-    log.error('Failed to start containers: ' + error.message);
-  }
-}
-
-async function waitForPostgres() {
-  log.info('Waiting for PostgreSQL to be ready...');
-  const maxAttempts = 30;
-  let attempts = 0;
-
-  while (attempts < maxAttempts) {
-    try {
-      await execPromise(
-        'PGPASSWORD=securelens psql -h localhost -U securelens -d securelens -c "SELECT 1"',
-        { stdio: 'pipe' }
-      );
-      log.success('PostgreSQL is ready');
-      return true;
-    } catch {
-      attempts++;
-      if (attempts % 5 === 0) {
-        log.info(`Waiting for PostgreSQL (attempt ${attempts}/${maxAttempts})...`);
-      }
-      await sleep(1000);
-    }
-  }
-
-  log.warn('PostgreSQL took longer to start');
   return false;
 }
 
-async function setupPrisma() {
-  log.info('Setting up Prisma database...');
-  try {
-    await execPromise('npx prisma migrate deploy 2>/dev/null || npx prisma db push 2>/dev/null || true', {
-      cwd: backendDir,
-    });
-    log.success('Database schema synced');
-  } catch (error) {
-    log.warn('Prisma setup warning: ' + error.message);
+async function startServices() {
+  log.step('Starting PostgreSQL + Redis');
+  const compose = composeCmd();
+  if (!dockerAvailable() || !compose) {
+    log.warn('Docker not available — skipping container startup.');
+    log.dim('If you run Postgres/Redis yourself, make sure they are up.');
+    return;
+  }
+  const up = run(compose[0], [compose[1], '-f', path.join(projectRoot, 'docker-compose.yml'), 'up', '-d', 'postgres', 'redis']);
+  if (up.status !== 0) {
+    log.warn(`docker compose up failed: ${(up.stderr || '').trim().slice(0, 200)}`);
+    return;
+  }
+  log.ok('Containers started (postgres:5433, redis:6380)');
+}
+
+async function runPrisma() {
+  log.step('Applying database schema');
+  const npx = (args) => run('npx', args, { cwd: backendDir });
+
+  // Always regenerate the client (cheap; avoids stale-client surprises).
+  const gen = npx(['prisma', 'generate']);
+  if (gen.status !== 0) {
+    log.warn(`prisma generate failed: ${(gen.stderr || '').trim().slice(0, 200)}`);
+  } else {
+    log.ok('Prisma client generated');
+  }
+
+  // Try real migrations first; if none exist or it fails, push the schema.
+  const migrate = npx(['prisma', 'migrate', 'deploy']);
+  if (migrate.status === 0) {
+    log.ok('Migrations applied');
+  } else {
+    log.dim('migrate deploy failed, falling back to `prisma db push`…');
+    const push = npx(['prisma', 'db', 'push', '--accept-data-loss']);
+    if (push.status === 0) log.ok('Schema pushed (db push)');
+    else log.warn(`prisma db push failed: ${(push.stderr || '').trim().slice(0, 200)}`);
   }
 }
 
-async function startBackend() {
-  log.info('Starting NestJS Backend Server...\n');
+function startBackend() {
+  log.step('Starting NestJS backend');
 
-  console.log(`${colors.green}${'='.repeat(60)}${colors.reset}`);
-  console.log(`${colors.green}✓ SecureLens Backend Development Ready!${colors.reset}`);
-  console.log(`${colors.green}${'='.repeat(60)}${colors.reset}\n`);
+  // Load .env into the child explicitly (ts-node -r dotenv/config).
+  const child = spawn(
+    'npx',
+    ['ts-node', '-r', 'dotenv/config', 'src/main.ts', `dotenv_config_path=${path.relative(backendDir, envFile)}`],
+    { cwd: backendDir, stdio: 'inherit', env: { ...process.env } },
+  );
 
-  console.log(`${colors.blue}Services Status:${colors.reset}`);
-  console.log(`  PostgreSQL: ${colors.green}✓${colors.reset} Running on localhost:5433`);
-  console.log(`  Redis:      ${colors.green}✓${colors.reset} Running on localhost:6380`);
-  console.log(`  Backend:    ${colors.yellow}Starting...${colors.reset}\n`);
+  // Forward Ctrl+C / SIGTERM so the backend shuts down gracefully.
+  const shutdown = (sig) => {
+    if (!child.killed) child.kill(sig);
+  };
+  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
 
-  console.log(`${colors.blue}Environment Variables:${colors.reset}`);
-  console.log(`  DATABASE_URL: postgresql://securelens:***@localhost:5433/securelens`);
-  console.log(`  REDIS_URL: redis://localhost:6380\n`);
-
-  // Start the backend development server
-  const backendProcess = spawn('npm', ['run', 'dev'], {
-    cwd: backendDir,
-    stdio: 'inherit',
-  });
-
-  backendProcess.on('error', (error) => {
-    log.error(`Backend process error: ${error.message}`);
-    process.exit(1);
-  });
-
-  backendProcess.on('exit', (code) => {
-    if (code !== 0) {
-      log.error(`Backend process exited with code ${code}`);
-    }
+  child.on('error', (e) => { log.err(`Backend failed to start: ${e.message}`); process.exit(1); });
+  child.on('exit', (code) => {
+    if (code !== 0 && code !== null) log.err(`Backend exited with code ${code}`);
+    process.exit(code ?? 0);
   });
 }
 
 async function main() {
-  console.log(`\n${colors.blue}🚀 Starting SecureLens Backend Development Environment...${colors.reset}\n`);
+  console.log(`\n${c.bold}🛡  SecureLens backend dev${c.reset}\n`);
 
-  try {
-    // Step 1: Check Docker
-    const dockerRunning = await checkDocker();
-    if (!dockerRunning) {
-      log.warn('Docker not running - attempting to continue anyway');
-    }
+  await startServices();
 
-    // Step 2: Start containers
-    await startContainers();
+  // Don't block startup forever if Postgres didn't come up; the app degrades.
+  const pgReady = await waitForTcp(5433, 'PostgreSQL', 25);
+  if (!pgReady) log.warn('PostgreSQL not responding on :5433 — continuing in offline mode');
 
-    // Step 3: Wait for PostgreSQL
-    await waitForPostgres();
+  if (pgReady) await runPrisma();
 
-    // Step 4: Setup Prisma
-    await setupPrisma();
-
-    // Step 5: Start backend
-    await startBackend();
-  } catch (error) {
-    log.error(`Setup failed: ${error.message}`);
-    process.exit(1);
-  }
+  startBackend();
 }
 
-main();
+main().catch((e) => { log.err(e.message); process.exit(1); });

@@ -2,6 +2,16 @@ import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 
+export interface JwtPayload {
+  sub: string;
+  userId: string;
+  email: string;
+  username: string;
+  name: string;
+  avatarUrl?: string;
+  role?: string;
+}
+
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor() {
@@ -12,8 +22,19 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: any) {
-    // Here you could fetch the user from DB if needed
-    return { userId: payload.sub, username: payload.username };
+  /**
+   * Passport attaches the return value to `req.user`. We forward every field
+   * the frontend needs (the callback page reads name/email/role off the JWT).
+   */
+  async validate(payload: JwtPayload) {
+    return {
+      userId: payload.sub ?? payload.userId,
+      id: payload.sub ?? payload.userId,
+      username: payload.username ?? payload.name,
+      name: payload.name,
+      email: payload.email,
+      avatarUrl: payload.avatarUrl,
+      role: payload.role,
+    };
   }
 }

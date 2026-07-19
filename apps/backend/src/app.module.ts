@@ -11,6 +11,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { ScanOrchestratorModule } from './scan-orchestrator/scan-orchestrator.module';
 import { QueueModule } from './queue/queue.module';
 import { AICopilotModule } from './ai/ai-copilot.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -19,9 +20,10 @@ import { AICopilotModule } from './ai/ai-copilot.module';
     AuthModule,
     DashboardModule,
     WorkspacesModule,
+    ScansModule,
+    NotificationsModule,
     ScanOrchestratorModule,
     QueueModule,
-    ScansModule,
     FindingsModule,
     ReportsModule,
     AnalyticsModule,

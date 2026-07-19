@@ -204,7 +204,8 @@ const Header: React.FC = () => {
                   ))}
                 </div>
                 <div className="px-4 py-2.5 border-t border-white/[0.04] text-center">
-                  <button className="text-[11px] text-gray-500 hover:text-gray-300 transition-colors">View all notifications</button>
+                  <button onClick={() => { setNotifOpen(false); router.push('/dashboard/notifications'); }}
+                    className="text-[11px] text-gray-500 hover:text-gray-300 transition-colors">View all notifications</button>
                 </div>
               </motion.div>
             )}

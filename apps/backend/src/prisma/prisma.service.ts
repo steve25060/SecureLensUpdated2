@@ -5,31 +5,47 @@ import { Pool } from 'pg';
 
 /**
  * PrismaService wraps PrismaClient with the required Driver Adapter (Prisma v7+).
- * If PostgreSQL is not reachable the service logs a warning and all service methods
- * fall back to in-memory seed data via their own try/catch blocks.
+ *
+ * If PostgreSQL is not reachable, `connected` stays `false` and services that
+ * consult it fall back to file-backed storage instead of throwing.
  */
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PrismaService.name);
 
+  /** True only after a successful `$connect()`. Read by services to decide
+   *  whether to use the database or a fallback store. */
+  connected = false;
+
   constructor() {
+    // Default port 5433 matches docker-compose.yml (host-side mapping).
     const connectionString =
       process.env.DATABASE_URL ??
-      'postgresql://securelens:securelens@localhost:5432/securelens';
+      'postgresql://securelens:securelens@localhost:5433/securelens';
 
     const pool = new Pool({ connectionString });
     const adapter = new PrismaPg(pool);
 
     super({ adapter } as any);
+
+    // Log only after super() — TypeScript forbids touching `this` before it.
+    this.logger.log(
+      `Database adapter configured (DATABASE_URL=${process.env.DATABASE_URL ? 'set' : 'unset, using default :5433'})`,
+    );
   }
 
   async onModuleInit() {
     try {
       await this.$connect();
-      this.logger.log('Database connected successfully');
+      // Probe with a trivial query — $connect can succeed against a wrong/empty
+      // DB, so we confirm the schema actually responds before trusting it.
+      await this.$queryRaw`SELECT 1`;
+      this.connected = true;
+      this.logger.log('Database connected & responsive');
     } catch (err: any) {
+      this.connected = false;
       this.logger.warn(
-        `Database not reachable (${err?.message ?? err}) – running with seed data fallback`,
+        `Database not reachable (${err?.message ?? err}) – services will use file fallback`,
       );
     }
   }

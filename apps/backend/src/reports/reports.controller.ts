@@ -11,17 +11,17 @@ export class ReportsController {
 
   @Get()
   findAll(@Req() req: AuthRequest) {
-    return this.reportsService.findAll(req.user?.userId ?? 'demo');
+    return this.reportsService.findAll(req.user?.userId ?? 'demo-user-1');
   }
 
   @Get('stats')
-  getStats() {
-    return this.reportsService.getStats();
+  getStats(@Req() req: AuthRequest) {
+    return this.reportsService.getStats(req.user?.userId ?? 'demo-user-1');
   }
 
   @Post()
   create(@Req() req: AuthRequest, @Body() body: any) {
-    return this.reportsService.create(req.user?.userId ?? 'demo', body);
+    return this.reportsService.create(req.user?.userId ?? 'demo-user-1', body ?? {});
   }
 
   @Get(':id')

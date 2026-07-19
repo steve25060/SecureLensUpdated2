@@ -6,9 +6,9 @@
   "main": "dist/main.js",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "dev": "ts-node -r dotenv/config src/main.ts dotenv_config_path=../../.env",
+    "dev": "node start-dev-node.js",
+    "dev:backend-only": "ts-node -r dotenv/config src/main.ts dotenv_config_path=../../.env",
     "start": "node dist/main.js",
-    "dev:full": "node start-dev-node.js",
     "dev:with-services": "./start-dev.sh"
   },
   "dependencies": {

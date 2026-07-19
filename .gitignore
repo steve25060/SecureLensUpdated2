@@ -116,6 +116,9 @@ Thumbs.db
 /apps/backend/prisma/*.db
 /apps/backend/prisma/*.db-journal
 
+# File-backed fallback data (used when Postgres is offline)
+.securelens-data/
+
 # Compiled code
 dist/
 build/

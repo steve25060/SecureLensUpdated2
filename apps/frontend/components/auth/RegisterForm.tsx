@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, type Variants } from "framer-motion";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
 
 import AuthCard from "@/components/auth/AuthCard";
 import PasswordInput from "@/components/auth/PasswordInput";
@@ -26,9 +27,69 @@ export default function RegisterForm() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [agree, setAgree] = useState(false);
 
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+    if (!agree) {
+      setError("Please accept the Terms & Conditions to continue.");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000";
+      const res = await fetch(`${backendUrl}/api/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: fullName,
+          email,
+          password,
+          confirmPassword,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(data?.message ?? "Registration failed. Please try again.");
+      }
+
+      // Persist token + user the same way LoginForm does.
+      if (data?.access_token) {
+        localStorage.setItem("access_token", data.access_token);
+      }
+      if (data?.user) {
+        localStorage.setItem("user", JSON.stringify(data.user));
+        if (data.user.email) localStorage.setItem("user_email", data.user.email);
+        if (data.user.name) localStorage.setItem("user_name", data.user.name);
+      }
+
+      router.push("/dashboard");
+    } catch (err: any) {
+      setError(err.message ?? "Something went wrong. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <AuthCard>
-      <motion.form className="space-y-6" initial="hidden" animate="show">
+      <motion.form
+        className="space-y-6"
+        initial="hidden"
+        animate="show"
+        onSubmit={handleSubmit}
+      >
         <motion.div variants={fieldVariants} custom={0} className="space-y-2">
           <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">Create Account</h1>
           <p className="max-w-md text-sm leading-6 text-white/55">
@@ -47,6 +108,7 @@ export default function RegisterForm() {
               value={fullName}
               onChange={(event) => setFullName(event.target.value)}
               placeholder="Alex Morgan"
+              required
               className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-white placeholder:text-white/30 outline-none transition focus:border-violet-400/50 focus:bg-white/[0.06] focus:ring-2 focus:ring-violet-500/20"
             />
           </motion.div>
@@ -61,6 +123,7 @@ export default function RegisterForm() {
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               placeholder="you@company.com"
+              required
               className="w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-white placeholder:text-white/30 outline-none transition focus:border-violet-400/50 focus:bg-white/[0.06] focus:ring-2 focus:ring-violet-500/20"
             />
           </motion.div>
@@ -126,16 +189,36 @@ export default function RegisterForm() {
           </motion.label>
         </div>
 
+        {error && (
+          <motion.div
+            variants={fieldVariants}
+            custom={7.5}
+            className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400"
+            role="alert"
+          >
+            {error}
+          </motion.div>
+        )}
+
         <motion.button
           variants={fieldVariants}
           custom={8}
-          whileHover={{ scale: 1.01 }}
-          whileTap={{ scale: 0.99 }}
+          whileHover={{ scale: isLoading ? 1 : 1.01 }}
+          whileTap={{ scale: isLoading ? 1 : 0.99 }}
           type="submit"
-          className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-linear-to-r from-violet-600 via-violet-500 to-fuchsia-500 px-4 py-3.5 text-sm font-semibold text-white shadow-[0_18px_40px_rgba(124,58,237,0.28)] transition"
+          disabled={isLoading}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-linear-to-r from-violet-600 via-violet-500 to-fuchsia-500 px-4 py-3.5 text-sm font-semibold text-white shadow-[0_18px_40px_rgba(124,58,237,0.28)] transition disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          Create Account
-          <ArrowRight className="h-4 w-4" />
+          {isLoading ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" /> Creating account…
+            </>
+          ) : (
+            <>
+              Create Account
+              <ArrowRight className="h-4 w-4" />
+            </>
+          )}
         </motion.button>
 
         <motion.div variants={fieldVariants} custom={9} className="flex items-center gap-4">

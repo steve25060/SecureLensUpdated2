@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
+import { PassportModule } from '@nestjs/passport';
 import { AuthController } from './auth.controller';
 import { OAuthFallbackController } from './oauth-fallback.controller';
 import { AuthService } from './auth.service';
@@ -8,7 +9,10 @@ import { GithubStrategy } from './github.strategy';
 import { GoogleStrategy } from './google.strategy';
 
 @Module({
+  // Global so WorkspacesService (and others) can inject AuthService / JwtService
+  // without each module re-importing AuthModule.
   imports: [
+    PassportModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'default_secret',
       signOptions: { expiresIn: '1h' },
@@ -16,6 +20,6 @@ import { GoogleStrategy } from './google.strategy';
   ],
   controllers: [AuthController, OAuthFallbackController],
   providers: [AuthService, JwtStrategy, GithubStrategy, GoogleStrategy],
-  exports: [AuthService],
+  exports: [AuthService, JwtModule],
 })
 export class AuthModule {}
